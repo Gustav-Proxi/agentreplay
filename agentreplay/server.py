@@ -15,14 +15,20 @@ from .sqlite_store import SQLiteStore, get_default_store
 
 app = FastAPI(title="AgentReplay", version="0.1.0")
 
+# Restrict CORS to localhost only — prevents remote pages exfiltrating trace data
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=[
+        "http://localhost:7474",
+        "http://127.0.0.1:7474",
+        "http://localhost:5173",   # Vite dev server
+        "http://127.0.0.1:5173",
+    ],
+    allow_methods=["GET"],
+    allow_headers=["Content-Type"],
 )
 
-# Serve compiled React UI assets — mount /assets so Vite's generated paths resolve
+# Serve compiled React UI assets
 _UI_DIR = Path(__file__).parent / "ui_dist"
 if (_UI_DIR / "assets").exists():
     app.mount("/assets", StaticFiles(directory=str(_UI_DIR / "assets")), name="assets")
@@ -39,6 +45,7 @@ def _get_store() -> SQLiteStore:
 
 @app.get("/api/runs", response_model=list[Run])
 def list_runs(limit: int = 50) -> list[Run]:
+    limit = min(limit, 200)
     return _get_store().list_runs(limit=limit)
 
 
@@ -88,13 +95,16 @@ _server_thread: threading.Thread | None = None
 
 
 def serve(
-    host: str = "0.0.0.0",
+    host: str = "127.0.0.1",
     port: int = 7474,
     open_browser: bool = False,
 ) -> None:
     """Start the AgentReplay server in a background daemon thread.
 
     Safe to call multiple times — starts only once.
+
+    Warning: if host is changed to "0.0.0.0" the dashboard becomes
+    network-accessible and will expose all trace data (prompts, outputs).
     """
     global _server_thread
     if _server_thread and _server_thread.is_alive():
@@ -102,7 +112,7 @@ def serve(
 
     import uvicorn
 
-    config = uvicorn.Config(app, host=host, port=port, log_level="error")
+    config = uvicorn.Config(app, host=host, port=port, log_level="warning")
     server = uvicorn.Server(config)
 
     def _run() -> None:
@@ -115,7 +125,7 @@ def serve(
         import time
         import webbrowser
 
-        time.sleep(0.8)  # give uvicorn a moment to bind
-        webbrowser.open(f"http://{host}:{port}")
+        time.sleep(0.8)
+        webbrowser.open(f"http://localhost:{port}")
 
-    print(f"AgentReplay dashboard: http://{host}:{port}")
+    print(f"AgentReplay dashboard: http://localhost:{port}")

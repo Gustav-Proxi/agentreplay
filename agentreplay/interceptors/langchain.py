@@ -254,11 +254,7 @@ class AgentReplayCallback(BaseCallbackHandler):
         node_id = self._node_map.get(lc_run_id)
         if not node_id:
             return None
-        nodes = self._store.list_nodes(self._run.id)
-        for n in nodes:
-            if n.id == node_id:
-                return n
-        return None
+        return self._store.get_node(self._run.id, node_id)
 
     def serve(self, port: int = 7474) -> None:
         """Convenience method to open the dashboard for this run."""

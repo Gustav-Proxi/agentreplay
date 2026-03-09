@@ -9,7 +9,9 @@ from typing import Any, AsyncGenerator, Generator
 from ..models import NodeType, TraceNode
 from ..sqlite_store import SQLiteStore, get_default_store
 
-# Module-level state for patching
+# Module-level state for patching — guarded by _state_lock
+import threading as _threading
+_state_lock = _threading.Lock()
 _original_anthropic_create: Any = None
 _original_anthropic_async_create: Any = None
 _patch_state: dict[str, Any] = {
@@ -23,19 +25,20 @@ def patch(run_id: str, store: SQLiteStore | None = None) -> None:
     """Patch Anthropic client to intercept messages.create calls."""
     global _original_anthropic_create, _original_anthropic_async_create
 
-    if _patch_state["patched"]:
-        return
+    with _state_lock:
+        if _patch_state["patched"]:
+            return
 
-    try:
-        import anthropic
-    except ImportError as e:
-        raise ImportError(
-            "anthropic package not found. Install it with: pip install anthropic"
-        ) from e
+        try:
+            import anthropic
+        except ImportError as e:
+            raise ImportError(
+                "anthropic package not found. Install it with: pip install anthropic"
+            ) from e
 
-    _patch_state["run_id"] = run_id
-    _patch_state["store"] = store or get_default_store()
-    _patch_state["patched"] = True
+        _patch_state["run_id"] = run_id
+        _patch_state["store"] = store or get_default_store()
+        _patch_state["patched"] = True
 
     # Patch sync version
     _original_anthropic_create = anthropic.Anthropic.messages.create

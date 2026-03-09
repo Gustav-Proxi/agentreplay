@@ -11,8 +11,15 @@ def main() -> None:
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
 
+    # Validate db path — prevent path traversal to sensitive directories
+    db_path = Path(args.db).resolve()
+    allowed_roots = [Path.home().resolve(), Path("/tmp").resolve(), Path.cwd().resolve()]
+    if not any(str(db_path).startswith(str(r)) for r in allowed_roots):
+        print(f"Error: --db path '{db_path}' is outside allowed directories (home, /tmp, cwd).")
+        sys.exit(1)
+
     import agentreplay.sqlite_store as _ss
-    _ss._default_store = _ss.SQLiteStore(db_path=args.db)
+    _ss._default_store = _ss.SQLiteStore(db_path=db_path)
 
     if not args.no_browser:
         import threading

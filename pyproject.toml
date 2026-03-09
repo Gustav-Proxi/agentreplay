@@ -11,7 +11,6 @@ dependencies = [
     "pydantic>=2.0",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
-    "aiosqlite>=0.20",
 ]
 
 [project.optional-dependencies]

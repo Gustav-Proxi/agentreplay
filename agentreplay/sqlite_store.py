@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -37,14 +39,32 @@ CREATE TABLE IF NOT EXISTS trace_nodes (
 )
 """
 
+_CREATE_INDEXES = """
+CREATE INDEX IF NOT EXISTS idx_nodes_run_id       ON trace_nodes(run_id);
+CREATE INDEX IF NOT EXISTS idx_nodes_run_start    ON trace_nodes(run_id, start_time);
+CREATE INDEX IF NOT EXISTS idx_runs_start_time    ON runs(start_time DESC);
+"""
+
+# 500 MB default cap; older runs pruned when exceeded
+_DEFAULT_MAX_DB_MB = 500
+_DEFAULT_RETENTION_DAYS = 7
+_MAX_QUERY_LIMIT = 1_000
+
 
 class SQLiteStore:
     """Manages all persistence for AgentReplay using a local SQLite file."""
 
-    def __init__(self, db_path: str | Path = ".agentreplay.db") -> None:
+    def __init__(
+        self,
+        db_path: str | Path = ".agentreplay.db",
+        max_db_mb: int = _DEFAULT_MAX_DB_MB,
+        retention_days: int = _DEFAULT_RETENTION_DAYS,
+    ) -> None:
         self._path = Path(db_path)
         self._local = threading.local()
         self._lock = threading.Lock()
+        self._max_db_bytes = max_db_mb * 1024 * 1024
+        self._retention_days = retention_days
         self._init_schema()
 
     # ------------------------------------------------------------------
@@ -53,7 +73,11 @@ class SQLiteStore:
 
     def _conn(self) -> sqlite3.Connection:
         if not hasattr(self._local, "conn"):
-            conn = sqlite3.connect(str(self._path), check_same_thread=False)
+            conn = sqlite3.connect(
+                str(self._path),
+                check_same_thread=False,
+                timeout=5.0,  # prevent indefinite hangs on lock contention
+            )
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA synchronous=NORMAL")
@@ -65,7 +89,23 @@ class SQLiteStore:
             conn = self._conn()
             conn.execute(_CREATE_RUNS)
             conn.execute(_CREATE_NODES)
+            conn.executescript(_CREATE_INDEXES)
             conn.commit()
+
+    def _maybe_prune(self) -> None:
+        """Prune old runs if DB exceeds size cap. Called before every upsert."""
+        try:
+            size = os.path.getsize(self._path)
+        except OSError:
+            return
+        if size < self._max_db_bytes:
+            return
+        cutoff = time.time() - self._retention_days * 86400
+        conn = self._conn()
+        conn.execute("DELETE FROM trace_nodes WHERE run_id IN (SELECT id FROM runs WHERE start_time < ?)", (cutoff,))
+        conn.execute("DELETE FROM runs WHERE start_time < ?", (cutoff,))
+        conn.execute("VACUUM")
+        conn.commit()
 
     # ------------------------------------------------------------------
     # Runs
@@ -81,6 +121,7 @@ class SQLiteStore:
             metadata = excluded.metadata
         """
         with self._lock:
+            self._maybe_prune()
             self._conn().execute(
                 sql,
                 {
@@ -101,6 +142,7 @@ class SQLiteStore:
         return _row_to_run(row) if row else None
 
     def list_runs(self, limit: int = 50) -> list[Run]:
+        limit = min(limit, _MAX_QUERY_LIMIT)
         rows = self._conn().execute(
             "SELECT * FROM runs ORDER BY start_time DESC LIMIT ?", (limit,)
         ).fetchall()
@@ -125,6 +167,7 @@ class SQLiteStore:
             token_usage = excluded.token_usage
         """
         with self._lock:
+            self._maybe_prune()
             self._conn().execute(
                 sql,
                 {
@@ -143,6 +186,14 @@ class SQLiteStore:
                 },
             )
             self._conn().commit()
+
+    def get_node(self, run_id: str, node_id: str) -> TraceNode | None:
+        """Fetch a single node by id — avoids the N+1 full-scan pattern."""
+        row = self._conn().execute(
+            "SELECT * FROM trace_nodes WHERE run_id = ? AND id = ? LIMIT 1",
+            (run_id, node_id),
+        ).fetchone()
+        return _row_to_node(row) if row else None
 
     def list_nodes(self, run_id: str) -> list[TraceNode]:
         rows = self._conn().execute(
