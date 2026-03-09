@@ -1,0 +1,41 @@
+name: Feature Request
+description: Propose a new feature or improvement.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the pain point. "When I debug X, I can't easily Y."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work? API design, UI sketch, pseudocode — anything helps.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Interceptors (new framework support)
+        - SQLite store
+        - REST API
+        - Dashboard / UI
+        - CLI
+        - Security
+        - Performance
+        - Documentation
+        - Other
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Would you like to implement this?
+      options:
+        - label: Yes, I'd like to open a PR for this

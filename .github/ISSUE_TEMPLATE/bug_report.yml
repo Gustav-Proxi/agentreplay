@@ -1,0 +1,66 @@
+name: Bug Report
+description: Something broken? Tell us what happened.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!
+
+  - type: input
+    id: version
+    attributes:
+      label: AgentReplay version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Which interceptor are you using?
+      options:
+        - LangChain callback
+        - OpenAI patch
+        - Anthropic patch
+        - smolagents wrap
+        - Raw SQLiteStore
+        - Dashboard / server
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug. Include what you expected vs what you got.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A small code snippet that reproduces the issue.
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Error output / traceback
+      render: text
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.11.9"
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "macOS 14 / Ubuntu 22.04 / Windows 11"
