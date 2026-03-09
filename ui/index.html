@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgentReplay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          colors: {
+            'ar-bg': '#0f0f0f',
+            'ar-surface': '#1a1a1a',
+            'ar-border': '#2a2a2a',
+            'ar-accent': '#e05c5c',
+            'ar-accent-hover': '#d04a4a',
+            'ar-green': '#5ce05c',
+            'ar-yellow': '#e0b85c',
+            'ar-blue': '#5c9ce0',
+            'ar-purple': '#9c5ce0',
+            'ar-text': '#e8e8e8',
+            'ar-muted': '#8a8a8a',
+            'ar-subtle': '#6a6a6a',
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-[#0f0f0f] text-[#e8e8e8]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
