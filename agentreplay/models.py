@@ -72,3 +72,11 @@ class TraceNode(BaseModel):
         self.end_time = time.time()
         self.outputs = outputs
         self.error = error[:4096] if error else error
+
+
+class RunStats(BaseModel):
+    run_id: str
+    total_nodes: int
+    by_type: dict[str, int]
+    total_tokens: int
+    duration_ms: float | None = None
