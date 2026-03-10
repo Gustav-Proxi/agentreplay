@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .models import Run, TraceNode
+from .models import Run, RunStats, TraceNode
 from .sqlite_store import SQLiteStore, get_default_store
 
 app = FastAPI(title="AgentReplay", version="0.1.0")
@@ -68,6 +68,24 @@ def list_nodes(run_id: str) -> list[TraceNode]:
     if not store.get_run(run_id):
         raise HTTPException(status_code=404, detail="Run not found")
     return store.list_nodes(run_id)
+
+
+@app.get("/api/runs/{run_id}/nodes/{node_id}", response_model=TraceNode)
+def get_node(run_id: str, node_id: str) -> TraceNode:
+    store = _get_store()
+    node = store.get_node(run_id, node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    return node
+
+
+@app.get("/api/runs/{run_id}/stats", response_model=RunStats)
+def get_run_stats(run_id: str) -> RunStats:
+    store = _get_store()
+    stats = store.get_run_stats(run_id)
+    if not stats:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return stats
 
 
 # ------------------------------------------------------------------

@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .models import Run, RunStatus, TraceNode
+from .models import Run, RunStats, RunStatus, TraceNode
 
 _CREATE_RUNS = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -201,6 +201,45 @@ class SQLiteStore:
             (run_id,),
         ).fetchall()
         return [_row_to_node(r) for r in rows]
+
+    def get_run_stats(self, run_id: str) -> RunStats | None:
+        """Compute aggregate stats for a run without fetching all nodes."""
+        run = self.get_run(run_id)
+        if not run:
+            return None
+
+        conn = self._conn()
+
+        # Count nodes by type
+        type_rows = conn.execute(
+            "SELECT node_type, COUNT(*) AS cnt FROM trace_nodes WHERE run_id = ? GROUP BY node_type",
+            (run_id,),
+        ).fetchall()
+        by_type = {row["node_type"]: row["cnt"] for row in type_rows}
+        total_nodes = sum(by_type.values())
+
+        # Sum tokens from token_usage JSON
+        token_rows = conn.execute(
+            "SELECT token_usage FROM trace_nodes WHERE run_id = ? AND token_usage IS NOT NULL",
+            (run_id,),
+        ).fetchall()
+        total_tokens = 0
+        for row in token_rows:
+            usage = json.loads(row["token_usage"])
+            total_tokens += usage.get("total_tokens", 0)
+
+        # Duration from run start/end
+        duration_ms = None
+        if run.end_time and run.start_time:
+            duration_ms = (run.end_time - run.start_time) * 1000
+
+        return RunStats(
+            run_id=run_id,
+            total_nodes=total_nodes,
+            by_type=by_type,
+            total_tokens=total_tokens,
+            duration_ms=duration_ms,
+        )
 
 
 # ------------------------------------------------------------------
