@@ -47,10 +47,12 @@ function ScrubBar({
 }
 
 export default function App() {
-  const { runs, loading: runsLoading } = useRuns();
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const { runs, loading: runsLoading } = useRuns(search, status);
 
   const { nodes, loading: nodesLoading } = useNodes(selectedRunId);
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
@@ -64,12 +66,16 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[#0f0f0f]">
       {/* Sidebar */}
-      <RunList
-        runs={runs}
-        loading={runsLoading}
-        selectedRunId={selectedRunId}
-        onSelect={handleRunSelect}
-      />
+<RunList
+  runs={runs}
+  loading={runsLoading}
+  selectedRunId={selectedRunId}
+  onSelect={handleRunSelect}
+  search={search}
+  setSearch={setSearch}
+  status={status}
+  setStatus={setStatus}
+/>
 
       {/* Timeline panel */}
       <div className="flex-1 flex flex-col border-r border-[#2a2a2a] min-w-0">

@@ -9,17 +9,28 @@ async function fetchJSON<T>(url: string): Promise<T> {
   return res.json();
 }
 
-export function useRuns() {
+export function useRuns(search?: string, status?: string) {
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchJSON<Run[]>(`${BASE}/runs`)
+    setLoading(true);
+
+    const params = new URLSearchParams();
+
+    if (search) params.append("q", search);
+    if (status) params.append("status", status);
+
+    const url = params.toString()
+      ? `${BASE}/runs?${params.toString()}`
+      : `${BASE}/runs`;
+
+    fetchJSON<Run[]>(url)
       .then(setRuns)
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [search, status]);
 
   return { runs, loading, error };
 }
