@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from re import search
 import sqlite3
 import threading
 import time
@@ -141,11 +142,25 @@ class SQLiteStore:
         ).fetchone()
         return _row_to_run(row) if row else None
 
-    def list_runs(self, limit: int = 50) -> list[Run]:
+    def list_runs(self, limit=50, status=None, search=None):
         limit = min(limit, _MAX_QUERY_LIMIT)
-        rows = self._conn().execute(
-            "SELECT * FROM runs ORDER BY start_time DESC LIMIT ?", (limit,)
-        ).fetchall()
+
+        sql = "SELECT * FROM runs WHERE 1=1"
+        params = []
+
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+
+        if search:
+            sql += " AND name LIKE ?"
+            params.append(f"%{search}%")
+
+        sql += " ORDER BY start_time DESC LIMIT ?"
+        params.append(limit)
+
+        rows = self._conn().execute(sql, params).fetchall()
+
         return [_row_to_run(r) for r in rows]
 
     # ------------------------------------------------------------------

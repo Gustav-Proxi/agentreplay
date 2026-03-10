@@ -44,9 +44,19 @@ def _get_store() -> SQLiteStore:
 
 
 @app.get("/api/runs", response_model=list[Run])
-def list_runs(limit: int = 50) -> list[Run]:
+def list_runs(
+    limit: int = 50,
+    status: str | None = None,
+    q: str | None = None
+) -> list[Run]:
+
     limit = min(limit, 200)
-    return _get_store().list_runs(limit=limit)
+
+    return _get_store().list_runs(
+        limit=limit,
+        status=status,
+        search=q
+    )
 
 
 @app.get("/api/runs/{run_id}", response_model=Run)
